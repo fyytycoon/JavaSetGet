@@ -336,25 +336,54 @@ Watch指令，类似乐观锁，事务提交时，如果Key的值已经被别的
 
 #### 8.2 Sentinel哨兵模式 (自动反从为主)
 
-```cmd
-	* sentinel模式是建立在主从模式的基础上，如果只有一个Redis节点，sentinel就没有任何意义
+其部署架构主要包括两部分：Redis Sentinel 集群和 Redis 数据集群
 
-	* 当master挂了以后，sentinel会在slave中选择一个做为master，并修改它们的配置文件，其他slave的配置文件也会被修改，比如slaveof属性会指向新的master
+Redis Sentinel 集群是由若干 Sentinel 节点组成的分布式集群，可以实现故障发现、故障自动转移、配置中心和客户端通知
 
-	* 当master重新启动后，它将不再是master而是做为slave接收新的master的同步数据
 
-	* sentinel因为也是一个进程有挂掉的可能，所以sentinel也会启动多个形成一个sentinel集群
+sentinel模式是建立在主从模式的基础上，如果只有一个Redis节点，sentinel就没有任何意义
 
-	* 多sentinel配置的时候，sentinel之间也会自动监控
+当master挂了以后，sentinel会在slave中选择一个做为master，并修改它们的配置文件，其他slave的配置文件也会被修改，比如slaveof属性会指向新的master
 
-	* 当主从模式配置密码时，sentinel也会同步将配置信息修改到配置文件中，不需要担心
+当master重新启动后，它将不再是master而是做为slave接收新的master的同步数据
 
-	* 一个sentinel或sentinel集群可以管理多个主从Redis，多个sentinel也可以监控同一个redis
+sentinel因为也是一个进程有挂掉的可能，所以sentinel也会启动多个形成一个sentinel集群
 
-	* sentinel最好不要和Redis部署在同一台机器，不然Redis的服务器挂了以后，sentinel也挂了
-```
+多sentinel配置的时候，sentinel之间也会自动监控
 
-工作机制：
+当主从模式配置密码时，sentinel也会同步将配置信息修改到配置文件中，不需要担心
+
+一个sentinel或sentinel集群可以管理多个主从Redis，多个sentinel也可以监控同一个redis
+
+sentinel最好不要和Redis部署在同一台机器，不然Redis的服务器挂了以后，sentinel也挂了
+
+Sentinel 的节点数量要满足 2n+1(n>=1)的奇数个(一主二从三哨兵)
+
+**缺陷**：
+
+在哨兵模式中，仍然只有一个Master节点。当**并发写请求**较大时，哨兵模式并不能缓解写压力。
+
+ 
+
+
+
+![Sentinel](..\img\Sentinel.jpeg)
+
+![Sentinel集群](..\img\Sentinel 集群.jpeg)
+
+
+
+哨兵选择从机的条件(依次判断)**：
+
+(1) 优先级 `redis.conf中slave-priority 100`
+
+(2) 偏移量 `指获取主机数据最多的从机`
+
+(3) runid最小 `每个redis实例启动都会生成一个40位的runid`
+
+
+
+**工作机制**：
 
 * 每个sentinel以每秒钟一次的频率向它所知的master，slave以及其他sentinel实例发送一个 PING 命令 
 
@@ -375,7 +404,7 @@ Watch指令，类似乐观锁，事务提交时，如果Key的值已经被别的
 
   Redis-sentinel /myredis/sentinel.conf
 
-   ```cmd
+```cmd
 # vim /usr/local/redis/sentinel.conf
 
 daemonize yes
@@ -385,30 +414,35 @@ sentinel monitor xxx <主机地址> <端口> <哨兵同意迁移数量(2)>  #判
 sentinel auth-pass mymaster 123456
 sentinel down-after-milliseconds mymaster 30000  #判断master主观下线时间，默认30s
 
-   ```
+```
 
-哨兵选择从机的条件(依次判断)：
 
-(1) 优先级 `redis.conf中slave-priority 100`
 
-(2) 偏移量 `指获取主机数据最多的从机`
 
-(3) runid最小 `每个redis实例启动都会生成一个40位的runid`
+
+
 
 #### 8.3 Cluster模式 集群
 
-扩容、并发分摊
+扩容、并发分摊、去中心化
 
-cluster集群特点：
+**cluster集群特点**：
+
+- **集群节点复制** 主节点可以添加从节点（也可以是一主多从），其中从不提供服务，仅作为备用
+- Redis-cluster**分片策略**，是用来解决key存储位置的。集群将整个数据库分为16384个槽位slot
+- 主节点内置了类似Sentinel的**节点故障检测**和**自动故障转移功能**，当集群中的某个主节点下线时，集群中的其他在线主节点会注意到这一点，并对已下线的主节点进行故障转移。
 
 * 多个redis节点网络互联，数据共享
-* 所有的节点都是一主一从（也可以是一主多从），其中从不提供服务，仅作为备用
 * 不支持同时处理多个key（如MSET/MGET），因为redis需要把key均匀分布在各个节点上，
   并发量很高的情况下同时创建key-value会降低性能并导致不可预测的行为
 * 支持在线增加、删除节点
 * 客户端可以连接任何一个主节点进行读写
 
-配置文件：
+![节点故障检测](..\img\节点故障检测.png)
+
+
+
+**配置文件**：
 
 ```cmd
 # vim /usr/local/redis/cluster/redis_7001.conf
@@ -426,7 +460,7 @@ cluster-config-file nodes_7001.conf # 设置节点配置文件名
 cluster-node-timeout 15000 # 设置节点失联时间，(毫秒),超时自动进行主从切换
 ```
 
-创建集群：
+**创建集群**：
 
 ```cmd
 redis-cli -a 123456 --cluster create 192.168.30.xxx:7001 192.168.30.xxx:7002 192.168.30.xxx:7003 192.168.30.xxx:7004 192.168.30.xxx:7005 192.168.30.xxx:7006 --cluster-replicas 1
