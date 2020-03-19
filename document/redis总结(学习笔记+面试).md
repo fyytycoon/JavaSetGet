@@ -367,9 +367,9 @@ Sentinel 的节点数量要满足 2n+1(n>=1)的奇数个(一主二从三哨兵)
 
 
 
-![Sentinel](..\img\Sentinel.jpeg)
+![Sentinel](../img/Sentinel.jpeg)
 
-![Sentinel集群](..\img\Sentinel 集群.jpeg)
+![Sentinel集群](../img/Sentinel_集群.jpeg)
 
 
 
@@ -438,7 +438,7 @@ sentinel down-after-milliseconds mymaster 30000  #判断master主观下线时间
 * 支持在线增加、删除节点
 * 客户端可以连接任何一个主节点进行读写
 
-![节点故障检测](..\img\节点故障检测.png)
+![节点故障检测](../img/节点故障检测.png)
 
 
 
