@@ -4,6 +4,8 @@ redis
 
 
 
+
+
 ### 一、redis是什么
 
 Redis：REmote DIctionary Server（远程字典服务器）
@@ -135,7 +137,7 @@ redis采用的是**定期删除**+**惰性删除**策略
 
 ### 六、持久化机制
 
-#### RDB(Redis DataBase)快照(冷备)
+#### RDB(Redis DataBase)快照(冷备)(默认)
 
 1. 是什么：
 
@@ -544,7 +546,7 @@ Redis采用的是基于内存的采用的是单进程单线程模型的 KV 数�
 
 
 
-#### 9.3 分布式锁是方式
+#### 9.3 分布式锁 方式
 
 (1) 基于数据库的分布式锁
 
@@ -589,7 +591,23 @@ Redis采用的是基于内存的采用的是单进程单线程模型的 KV 数�
 
 (二)从网关层，Nginx增加配置项，对单个IP访问次数超出阈值的ip拉黑
 
-(三)提供一个能迅速判断请求是否有效的**拦截机制**，比如，利用布隆过滤器(Bloom Filter 防止缓存穿透的数据结构)，内部维护一系列合法有效的key。迅速判断出，请求所携带的Key是否合法有效。如果不合法，则直接返回。
+(三)提供一个能迅速判断请求是否有效的**拦截机制**，比如，利用**布隆过滤器**(Bloom Filter 防止缓存穿透的数据结构)。把已存在数据的key存在布隆过滤器中，当有新的请求时，先到布隆过滤器中查询是否存在，如果不存在该条数据直接返回；如果存在该条数据再查询缓存查询数据库。
+
+`布隆过滤器相对于Set、Map 等数据结构来说，它可以更高效地插入和查询，并且占用空间更少，它也有缺点，就是判断某种东西是否存在时，可能会被误判。但是只要参数设置的合理，它的精确度也可以控制的相对精确，只会有小小的误判概率。`
+
+
+
+> 向布隆过滤器中添加元素时，会使用多个无偏哈希函数对元素进行哈希，算出一个整数索引值，然后对**位数组**长度进行取模运算得到一个位置，每个无偏哈希函数都会得到一个不同的位置。再把位数组的这几个位置都设置为1，这就完成了`bf.add`命令的操作。
+
+
+
+> 向布隆过滤器查询元素是否存在时`bf.exists`，和添加元素一样，也会把哈希的几个位置算出来，然后看看位数组中对应的几个位置是否都为1，只要有一个位为0，那么就说明布隆过滤器里不存在这个元素。如果这几个位置都为1，并不能完全说明这个元素就一定存在其中，有可能这些位置为1是因为其他元素的存在，这就是布隆过滤器会出现误判的原因。
+
+
+
+> Bit-map就是用一个bit位来标记某个元素对应的Value，通过Bit为单位来存储数据，可以大大节省存储空间.
+
+[详细解析Redis中的布隆过滤器及其应用](https://www.cnblogs.com/heihaozi/p/12174478.html)
 
 #### 9.7 缓存击穿
 
@@ -599,9 +617,30 @@ Redis采用的是基于内存的采用的是单进程单线程模型的 KV 数�
 
 (二) 加上互斥锁就能搞定了
 
+#### 9.8 redis消息队列
 
+发布者: publish channel1 "xxxx"
 
+消费者: subscribe channel1
 
+#### 9.9 java操作redis
+
+1. 官方推荐的jedis，支持集群
+
+   [java中使用Jedis操作Redis实例](https://blog.csdn.net/lovelichao12/article/details/75333035/)
+
+2. spring data redis，它是由spring集成的，不支持集群  (RedisTempate)    默认对key/value做序列化
+
+    [java之redis篇(spring-data-redis整合](https://www.cnblogs.com/tankaixiong/p/3660075.html)
+
+#### 9.10 redis通过pipeline提升吞吐量
+
+[redis通过pipeline提升吞吐量](https://www.cnblogs.com/littleatp/p/8419796.html)
+
+普通的请求模型是同步的，每次请求对应一次IO操作等待；
+而Pipeline 化之后所有的请求合并为一次IO，除了时延可以降低之外，还能大幅度提升系统吞吐量。
+
+pipeline机制可以优化吞吐量，但无法提供原子性/事务保障，而这个可以通过Redis-Multi等命令实现。
 
 
 
@@ -611,3 +650,81 @@ Redis采用的是基于内存的采用的是单进程单线程模型的 KV 数�
 - 事前：`Redis` 高可用，主从+哨兵，`Redis cluster`，避免全盘崩溃。
 - 事中：本地 `ehcache` 缓存 + `Hystrix` 限流+降级，避免`MySQL` 被打死。
 - 事后：`Redis` 持久化 `RDB`+`AOF`，一旦重启，自动从磁盘上加载数据，快速恢复缓存数据。
+
+
+
+### 十、Hibernate/MyBatis三级缓存
+
+
+
+![](../img/缓存.png)
+
+
+
+
+
+**MyBatis一级缓存**
+
+一级缓存是SqlSession级别的缓存。在操作数据库时需要构造sqlSession对象，在对象中有一个数据结构用于存储缓存数据。不同的sqlSession之间的缓存数据区域是互相不影响的。修改、添加、删除时，清空缓存，session commit之后缓存就失效
+
+**MyBatis二级缓存**
+
+> 既然有了一级缓存，那么为什么要提供二级缓存呢？
+
+> 二级缓存是mapper级别的缓存，多个SqlSession去操作同一个Mapper的sql语句，多个SqlSession可以共用二级缓存，二级缓存是跨SqlSession的。二级缓存的作用范围更大。
+
+> 还有一个原因，实际开发中，MyBatis通常和Spring进行整合开发。Spring将事务放到Service中管理，对于每一个service中的sqlsession是不同的，这是通过mybatis-spring中的org.mybatis.spring.mapper.MapperScannerConfigurer创建sqlsession自动注入到service中的。 每次查询之后都要进行关闭sqlSession，关闭之后数据被清空。所以spring整合之后，如果没有事务，一级缓存是没有意义的。
+
+> 那么如果开启二级缓存，关闭sqlsession后，会把该sqlsession一级缓存中的数据添加到namespace的二级缓存中。这样，缓存在sqlsession关闭之后依然存在。
+
+SqlSessionFactory层面上的二级缓存默认是**不开启**的，该缓存是以namespace为单位的（也就是一个Mapper.xml文件），实现二级缓存的时候，**MyBatis要求返回的POJO必须是可序列化的。 也就是要求实现Serializable接口**，配置方法很简单，只需要在映射XML文件配置就可以开启缓存了<cache/>，如果我们配置了二级缓存就意味着：
+
+- 映射语句文件中的所有select语句将会被缓存。
+- 映射语句文件中的所欲insert、update和delete语句会刷新缓存。
+- 缓存会使用默认的Least Recently Used（**LRU**，最近最少使用的）算法来收回。
+- 根据时间表，比如No Flush Interval,（CNFI没有刷新间隔），缓存不会以任何时间顺序来刷新。
+- 缓存会存储列表集合或对象(无论查询方法返回什么)的1024个引用
+- 缓存会被视为是read/write(可读/可写)的缓存，意味着对象检索不是共享的，而且可以安全的被调用者修改，不干扰其他调用者或线程所做的潜在修改。
+
+弊端：
+
+例如在UserMapper.xml中有大多数针对user表的操作。但是在另一个XXXMapper.xml中，还有针对user单表的操作。这会导致user在两个命名空间下的数据不一致。如果在UserMapper.xml中做了刷新缓存的操作，在XXXMapper.xml中缓存仍然有效，如果有针对user的单表查询，使用缓存的结果可能会不正确，读到脏数据。
+
+在 mybatis-config.xml中开启二级缓存
+
+```xml
+<configuration>
+    <settings>
+        <!--这个配置使全局的映射器(二级缓存)启用或禁用缓存-->
+        <setting name="cacheEnabled" value="true" />
+    </settings>
+</configuration>
+```
+
+在映射文件中开启二级缓存
+
+```
+<mapper namespace="com.yihaomen.mybatis.dao.StudentMapper">
+    <!--开启本mapper的namespace下的二级缓存-->
+    <!--
+        eviction:代表的是缓存回收策略，目前MyBatis提供以下策略。
+        (1) LRU,最近最少使用的，一处最长时间不用的对象
+        (2) FIFO,先进先出，按对象进入缓存的顺序来移除他们
+        (3) SOFT,软引用，移除基于垃圾回收器状态和软引用规则的对象
+        (4) WEAK,弱引用，更积极的移除基于垃圾收集器状态和弱引用规则的对象。这里采用的是LRU，
+                移除最长时间不用的对形象
+
+        flushInterval:刷新间隔时间，单位为毫秒，这里配置的是100秒刷新，如果你不配置它，那么当
+        SQL被执行的时候才会去刷新缓存。
+
+        size:引用数目，一个正整数，代表缓存最多可以存储多少个对象，不宜设置过大。设置过大会导致内存溢出。
+        这里配置的是1024个对象
+
+        readOnly:只读，意味着缓存数据只能读取而不能修改，这样设置的好处是我们可以快速读取缓存，缺点是我们没有
+        办法修改缓存，他的默认值是false，不允许我们修改
+    -->
+    <cache eviction="LRU" flushInterval="100000" readOnly="true" size="1024"/>
+</mapper>
+```
+
+[MyBatis缓存](https://www.cnblogs.com/happyflyingpig/p/7739749.html)

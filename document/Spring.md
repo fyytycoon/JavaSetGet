@@ -316,7 +316,7 @@ IoC：Inversion of Control，即“控制反转”，在传统的开发模式中
 
 (4).反射==>Class.forName(classValue).newIntstance()
 
-![SpringIOC原理](C:\Users\Administrator\Desktop\2020-02-25计划\SpringIOC原理.png)
+![SpringIOC原理](../img/SpringIOC原理.png)
 
 
 #### 6.2. 通过SET方式注入属性的值
@@ -749,15 +749,15 @@ Proxy（代理）：将通知织入目标对象之后，形成代理对象
 
 #### 12.4 配置aop
 
-![bean配置](..\img\bean配置.png)
+![bean配置](../img/bean配置.png)
 
 
 
-![bean配置](..\img\xmlAop配置.png)
+![bean配置](../img/xmlAop配置.png)
 
-![bean配置](..\img\aop注释配置(1).png)
+![bean配置](../img/aop注释配置(1).png)
 
-![bean配置](..\img\aop注释配置(2).png)
+![bean配置](../img/aop注释配置(2).png)
 
 
 
@@ -847,7 +847,7 @@ public class Client {
 
 目标对象和代理对象共同作为接口的实现类，代理对象把真正的方法委托给目标对象来执行，自己就执行额外的也就是AOP要织入的逻辑，即客户端调用代理的方法，同时给代理类传入目标对象，在代理类里面代理类通过目标对象来调用目标类的方法，在执行方法前后加上代理类的逻辑。
 
-![静态代理原理图](..\img\静态代理原理图.jpg)
+![静态代理原理图](../img/静态代理原理图.jpg)
 
 
 
@@ -861,9 +861,9 @@ jdk运行期动态代理源码解析：其实就是真实类实现一个接口�
 
 ##### 12.6.3cglib动态代理
 
-![cglib代理原理](..\img\cglib代理原理.png)
+![cglib代理原理](../img/cglib代理原理.png)
 
-![cglib代理原理2](..\img\cglib代理原理2.png)
+![cglib代理原理2](../img/cglib代理原理2.png)
 
 (1) 生成指定类对象的子类，也就是重写类中的业务函数。
 
