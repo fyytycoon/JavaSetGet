@@ -121,5 +121,5 @@
 
 参考：《Java工程师面试突击第1季-中华石杉老师》
 
-## 六、[ActiveMQ](../ActiveMQ.md)
+## 六、[ActiveMQ](../document/ActiveMQ.md)
 
