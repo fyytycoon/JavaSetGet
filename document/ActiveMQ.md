@@ -248,13 +248,90 @@ session.commit();
 
 #### [物理]消息存储和持久化
 
+为了避免意外宕机以后丢失信息，需要做到重启后可以恢复消息队列，消息系统一半都会采用持久化机制。<br>ActiveMQ的消息持久化机制有JDBC，AMQ，KahaDB和LevelDB，无论使用哪种持久化方式，消息的存储逻辑都是一致的。<br> <br>就是在发送者将消息发送出去后，消息中心首先将消息存储到本地数据文件、内存数据库或者远程数据库等。再试图将消息发给接收者，成功则将消息从存储中删除，失败则继续尝试尝试发送。<br><br>消息中心启动以后，要先检查指定的存储位置是否有未成功发送的消息，如果有，则会先把存储位置中的消息发出去。
+
+**AMQ Mesage Store(了解）**
+
+AMQ是一种文件存储形式，它具有写入速度快和容易恢复的特点。消息存储再一个个文件中文件的默认大小为32M，当一个文件中的消息已经全部被消费，那么这个文件将被标识为可删除，在下一个清除阶段，这个文件被删除。AMQ适用于ActiveMQ5.3之前的版本
+
+**KahaDB消息存储(默认)**ActiveMQ5.4
+
+KahaDB是目前默认的存储方式，可用于任何场景，提高了性能和恢复能力。<br>消息存储使用一个**事务日志**和仅仅用一个**索引文件**来存储它所有的地址。<br>KahaDB是一个专门针对消息持久化的解决方案，它对典型的消息使用模型进行了优化。<br>数据被追加到data logs中。当不再需要log文件中的数据的时候，log文件会被丢弃。
+
+![](../img/KahaDB.png)
+
+
+
+KahaDB在消息保存的目录中有4类文件和一个lock，跟ActiveMQ的其他几种文件存储引擎相比，这就非常简洁了。
+
+1，db-<number>.log
+
+KahaDB存储消息到预定大小的数据纪录文件中，文件名为db-<number>.log。当数据文件已满时，一个新的文件会随之创建，number数值也会随之递增，它随着消息数量的增多，如没32M一个文件，文件名按照数字进行编号，如db-1.log，db-2.log······。当不再有引用到数据文件中的任何消息时，文件会被删除或者归档。
+
+2，db.data
+
+该文件包含了持久化的BTree索引，索引了消息数据记录中的消息，是消息的索引文件，本质是BTree，指向了db-<number>.log 里的消息
+
+3，db.free
+
+当前db.data 文件里哪些页面是空闲的，文件具体内容是所有空页面的ID
+
+4，db.redo
+
+用来进行消息恢复，如果KahaDB消息存储在强制退出后启动，用于恢复BTree索引
+
+5， lock 
+
+文件锁，表示当前获得KahaDB读写权限的broker
+
+**JDBC存储消息**
+
+将数据持久化到数据库中。建一个名为activemq的数据库，有三张表ACTIVEMQ_MSGS、ACTIVEMQ_ACKS、ACTIVEMQ_LOCK，如果是queue，在没有消费者消费的情况下会将消息保存到ACTIVEMQ_MSGS表中，只要有任意一个消费者消费了，就会删除消费过的消息。如果是topic，一般是先启动消费订阅者然后再生产的情况下会将持久订阅者永久保存到ACTIVEMQ_ACKS，而消息则永久保存在ACTIVEMQ_MSGS，在acks表中的订阅者有一个last_ack_id对应了activemq_msgs中的id字段，这样就知道订阅者最后收到的消息是哪一条。
+
+
+
+[JDBC存储消息配置](../code/ActiveMQ_JDBC持久化.md)
+
+**JDBC Persistence without Journaling**
+
+这种方式克服了JDBC Store的不足，JDBC每次消息过来，都需要去写库读库。<br>ActiveMQ Journal，使用高速缓存写入技术，大大提高了性能。<br><br>当消费者的速度能够及时跟上生产者消息的生产速度时，journal文件能够大大减少需要写入到DB中的消息。<br>举个例子：<br>生产者生产了1000条消息，这1000条消息会保存到journal文件，如果消费者的消费速度很快的情况下，在journal文件还没有同步到DB之前，消费者已经消费了90%的以上消息，那么这个时候只需要同步剩余的10%的消息到DB。如果消费者的速度很慢，这个时候journal文件可以使消息以批量方式写到DB。
+
+
+
+
+
 ### 二、可用性
 
-集群
+**集群**
+
+![](../img/zk+activemq集群.png)
+
+基于zookeeper和LevelDB搭建ActiveMQ集群。集群仅提供主备方式的高可用集群功能，避免单点故障。
+
+**原理：**
+
+使用Zookeeper集群注册所有的ActiveMQ Broker但只有其中一个Broker可以提供服务，它将被视为Master,其他的Broker处于待机状态被视为Slave。<br>如果Master因故障而不能提供服务，Zookeeper会从Slave中选举出一个Broker充当Master。<br>Slave连接Master并同步他们的存储状态，Slave不接受客户端连接。所有的存储操作都将被复制到连接至Maste的Slaves。<br>如果Master宕机得到了最新更新的Slave会变成Master。故障节点在恢复后会重新加入到集群中并连接Master进入Slave模式。<br><br>所有需要同步的消息操作都将等待存储状态被复制到其他法定节点的操作完成才能完成。<br>所以，如给你配置了replicas=3，name法定大小是（3/2）+1 = 2。Master将会存储更新然后等待（2-1）=1个Slave存储和更新完成，才汇报success
 
 容错性
 
 ### 三、延时/定时发送
+
+要在activemq.xml中`<broker>`配置schedulerSupport属性为true
+
+Message设置属性，ScheduledMessage类
+
+`message.setLongProperty(ScheduledMessage.AMQ_SCHEDULED_DELAY.delay);`
+
+| Property name        | type   | description                                                  |
+| -------------------- | ------ | ------------------------------------------------------------ |
+| AMQ_SCHEDULED_DELAY  | long   | 消息在计划由代理传递之前等待的时间(以毫秒为单位)             |
+| AMQ_SCHEDULED_PERIOD | long   | 在开始时间之后等待的时间(以毫秒为单位)，在再次调度消息之前等待 |
+| AMQ_SCHEDULED_REPEAT | int    | 重复调度传递消息的次数                                       |
+| AMQ_SCHEDULED_CRON   | String | 使用Cron条目来设置时间表                                     |
+
+[ActiveMQ_延时or定时发送](../code/ActiveMQ_延时or定时发送.md)
+
+
 
 ### 四、数据一致性
 
@@ -286,8 +363,49 @@ session.commit();
 
 可靠性
 
-异步发送，自写回调函数
-消息重发机制
+#### 异步发送，自写回调函数
+
+ActiveMQ默认使用异步发送的模式，除非**明确指定使用同步发送的方式**或者在**未使用事务的前提下发送持久化的消息**，这两种情况都是同步发送的。<br>如果你没有使用事务且发送的是持久化的消息，每一次发送都是同步发送的且会阻塞producer知道broker返回一个确认，表示消息已经被安全的持久化到磁盘。确认机制提供了消息安全的保障，但同时会阻塞客户端带来了很大的延时。<br>
+
+异步发送可能丢失消息，官网配置下：
+
+**Configuring Async Send using a Connection URI**
+
+You can use the Connection Configuration URsends as follows
+
+```java
+cf = new ActiveMQConnectionFactory("tcp://locahost:61616?jms.useAsyncSend=true");
+```
+
+**Configuring Async Send at the ConnectionFactory Level**
+
+You can enable this feature on the ActiveMQConnectionFactory object using the property.
+
+```java
+((ActiveMQConnectionFactory)connectionFactory).setUseAsyncSend(true);
+```
+
+**Configuring Async Send at the Connection Level**
+
+Configuring the dispatchAsync setting at this level overrides the settings at the connection factory level.
+
+You can enable this feature on the ActiveMQConnection object using the property.
+
+```java
+((ActiveMQConnection)connection).setUseAsyncSend(true);
+```
+
+
+
+异步发送丢失消息的场景是：生产者设置userAsyncSend=true，使用producer.send(msg)持续发送消息。<br>如果消息不阻塞，生产者会认为所有send的消息均被成功发送至MQ。<br>如果MQ突然宕机，此时生产者端内存中尚未被发送至MQ的消息都会丢失。<br><br>所以，正确的异步发送方法是**需要接收回调的**。<br><br>同步发送和异步发送的区别就在此，<br>同步发送等send不阻塞了就表示一定发送成功了，<br>异步发送需要客户端回执并由客户端再判断一次是否发送成功<br>
+
+
+
+[ActiveMQ_异步发送消息并回调代码演示](../code/ActiveMQ_异步发送消息并回调.md)
+
+
+
+#### 消息重发机制
 
 ### 七、消息顺序消费
 
