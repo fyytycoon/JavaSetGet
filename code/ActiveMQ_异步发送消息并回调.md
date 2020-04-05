@@ -32,7 +32,7 @@ public class MsgProducer {
         // 5.创建Destination 获取消息目的地，消息发送给谁,主要是指Queue和Topic
         Destination destination = session.createQueue(queueName);
         // 6.创建生产者producer
-        ActiveMQMessageProducer activeMQMessageProducer = session.createProducer(destination);
+        ActiveMQMessageProducer activeMQMessageProducer = (ActiveMQMessageProducer)session.createProducer(destination);
         for (int i = 0; i < 10; i++) {
             TextMessage tms = session.createTextMessage("textMessage:" + i);
             tms.setJMSMessageID(UUID.randomUUID().toString());
