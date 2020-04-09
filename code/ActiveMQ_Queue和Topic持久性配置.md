@@ -247,7 +247,8 @@ applicationContext-activemq.xml  生产者
 
 
 
-spring中的三种connectionFactory
+##### spring中的三种connectionFactory
+
 **SingleConnectionFactory**：顾名思义只会创建一个共享的连接。
 **CachingConnectionFactory**：继承了SingleConnectionFactory，所以它拥有SingleConnectionFactory的所有功能，同时它还新增了缓存功能，它可以缓存Session、MessageProducer和MessageConsumer。推荐使用，在并发量不是很高的情况下也是比较实用。
 **PooledConnectionFactory**：只会缓存connection，session和productor，不会缓存consumer。并发量高的情况下比较实用。
