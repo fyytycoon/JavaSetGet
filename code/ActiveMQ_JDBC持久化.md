@@ -31,10 +31,91 @@ http://activemq.apache.org/persistence
     <property name="username" value="activemq"/> 
     <property name="password" value="activemq"/> 
     <property name="poolPreparedStatements" value="true"/> 
-</bean> 
+</bean>
+
 ```
 
-
+```json
+{
+  "ID": "3df30b46-317f-4812-a55e-3df78ca7f3d1",
+  "TESTNO": "140881362103061128207253",
+  "QIYMCH": "永济市锦鸿机动车辆检测检验有限责任公司",
+  "DQBM": "140881",
+  "JYRQ": "20210306112820",
+  "JYJL": "不合格",
+  "LICENSEZT": "2",
+  "LICENSE": "M22228",
+  "LICENSETYPE": "1",
+  "VEHICLETYPE": "K32",
+  "VEHICLEMODEL": "KL1CC53F18B",
+  "ENGINENO": "Z24SED",
+  "VIN": "KL1CC53F18B214391",
+  "FUELTYPE": "A",
+  "REGISTERDATE": "20080320",
+  "TESTTYPE": "1",
+  "LAMBDAUP": "1.05",
+  "LAMBDADOWN": "0.95",
+  "LAMBDAXZHUP": "0.9920",
+  "LAMBDAXZHDOWN": "0.9920",
+  "LSCOLIMIT": "0.60",
+  "LSCORESULT": "0.05",
+  "LSHCLIMIT": "80",
+  "LSHCRESULT": "16",
+  "HSCOLIMIT": "0.30",
+  "HSCORESULT": "0.46",
+  "HSHCLIMIT": "50",
+  "HSHCRESULT": "68",
+  "HC5025LIMIT": "",
+  "CO5025LIMIT": "",
+  "NO5025LIMIT": "",
+  "HC2540LIMIT": "",
+  "CO2540LIMIT": "",
+  "NO2540LIMIT": "",
+  "HC5025": "",
+  "CO5025": "",
+  "NO5025": "",
+  "HC2540": "",
+  "CO2540": "",
+  "NO2540": "",
+  "SMOKEKLIMI80": "",
+  "SMOKEKLIMI100": "",
+  "K100": "",
+  "K80": "",
+  "NOX80": "",
+  "NOX80LIMIT": "",
+  "MAXPOWERLIMIT": "",
+  "MAXPOWE": "",
+  "RATEREVDOWN": "4500",
+  "REV100": "",
+  "DAISED": "",
+  "DAISSHC": "",
+  "SMOKEK1": "",
+  "SMOKEK2": "",
+  "SMOKEK3": "",
+  "SMOKEAVG": "",
+  "SMOKEKLIMIT": "",
+  "ZHISHDZT": "1",
+  "TXZT": "1",
+  "TXYY": "",
+  "GZHDMXINX": "",
+  "TXGZHM": "2",
+  "JXZT": "1",
+  "JXYY": "1,2,4",
+  "XSHLCH": "0",
+  "FDJCALID": "BOSCH96960607",
+  "HCHLCALID": "不支持",
+  "QTCALID": "不支持",
+  "FDJCVN": "不支持",
+  "HCHLCVN": "不支持",
+  "QTCVN": "不支持",
+  "OBDJG": "",
+  "JYY": "毛博婷",
+  "IS_FJ": "1",
+  "JY_CLASS": "在用汽车检验",
+  "VLPN": "晋M22228",
+  "VDCT": "0"
+}
+```
 
 ### 三、建库SQL和创表说明
 
