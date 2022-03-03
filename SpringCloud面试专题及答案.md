@@ -36,8 +36,14 @@ nacos gateway feign
 
 ## 服务注册与发现
 
+CAP 一致性（Consistency）、可用性（Availability）、分区容错性（Partition tolerance），一般情况下，保证AP，会舍弃C强一致性，但要保证最终一致性。
+
+
+
+
+
 注册中心 Eureka、Zookeeper、Consul、nacos  
-CAP 一致性（Consistency）、可用性（Availability）、分区容错性（Partition tolerance）
+
 
 Eureka(AP) 为了保证了可用性，`Eureka` 不会等待集群所有节点都已同步信息完成，它会无时无刻提供服务。
 
@@ -139,6 +145,8 @@ server最多3个 ，client`service-url`端配置随机打乱 。原因是，clie
 
 ### Ribbon 负载均衡
 
+[Ribbon负载均衡](./document/springcloud组件/05-Ribbon负载均衡.md)
+
 1. 几种负载均衡。（硬，软（服务端，客户端（Ribbon）））
 
    负载均衡，不管 `Nginx` 还是 `Ribbon` 都需要其算法的支持，如果我没记错的话 `Nginx` 使用的是 轮询和加权轮询算法。而在 `Ribbon` 中有更多的负载均衡调度算法，其默认是使用的 `RoundRobinRule` 轮询策略。
@@ -198,8 +206,22 @@ Spring Cloud默认是懒加载，指定名称的Ribbon Client第一次请求时�
 测试：
 
 1. 上面配置为false启动，控制台没打印服务列表。
-
 2. 为true：打印服务列表如下。
+
+
+
+#### ribbon自定义负载均衡策略(Ribbon灰度)
+
+发生在 服务调服务 情况下。
+
+1. 自定义Rule。继承自com.netflix.loadbalancer.AbstractLoadBalancerRule
+2. 实现 choose，灰度规则。从eureka注册列表中拿服务列表，获取*metadata*属性。用户信息，需要 AOP切面 拦截请求，拿到header，用户信息，放到ThreadLocal中。用户信息与服务信息匹配时，进行请求。
+
+
+
+[Ribbon灰度方案](https://blog.csdn.net/sdmanooo/article/details/115480381)
+
+[Spring Cloud灰度发布方案----自定义路由规则](https://blog.csdn.net/han949417140/article/details/121420529)
 
 ### Feign 服务调用
 
@@ -225,6 +247,12 @@ POST多参数请求
 RestTemplate，自由，更贴近httpclient，方便调用别的第三方的http服务。
 
 feign，更面向对象一些，更优雅一些。
+
+
+
+#### [FeignClient如何共享Header以及踩坑过程](https://www.cnblogs.com/logan-w/p/12498448.html)
+
+
 
 ### Hystrix 服务限流、降级、熔断
 
@@ -372,7 +400,204 @@ feign，更面向对象一些，更优雅一些。
 
 zuul默认集成了：ribbon和hystrix。
 
-[网关](./document/springcloud组件/08-网关.md)
+[Zuul网关](./document/springcloud组件/08-网关.md)
+
+Zuul的大部分功能都是有过滤器实现的。
+
+#### 4种过滤器
+
+```sh
+PRE: 在请求被路由之前调用，可利用这种过滤器实现身份验证。选择微服务，记录日志，限流。
+ROUTE:在将请求路由到微服务调用，用于构建发送给微服务的请求，并用http clinet（或者ribbon）请求微服务。
+POST:在调用微服务执行后。可用于添加header，记录日志，将响应发给客户端。
+ERROR:在其他阶段发生错误是，走此过滤器。
+```
+
+4种过滤器执行顺序：
+
+pre->route->post 中间任何环节报错，走error和post，post环节报错只走error。
+
+
+
+自定义filter步骤：
+
+1. 继承 zuulfilter
+
+2.  shouldFilter 执行条件设置为 true
+
+3. run方法，过滤器的业务逻辑
+
+4. filterType：pre,route,post,error
+
+5. filterOrder：执行顺序，在谁前，在谁后，可以+1，-1，数字越小越容易执行
+
+   
+
+#### zuul filter 转发路由
+
+背景：
+
+老项目改造，合作方不愿意换老接口url，生产线上url需要按照需要通过网关转发给不同的service，
+
+方案：
+
+1、使用[静态路由](https://so.csdn.net/so/search?q=静态路由&spm=1001.2101.3001.7020)配置的方式，在yml配置文件中将原请求路径前缀和service-id进行对应
+2、实现zuulfilter，将[url](https://so.csdn.net/so/search?q=url&spm=1001.2101.3001.7020)进行转发
+
+对比：
+
+之前用过自定义路由，在yml文件配置route的方式去做转发，遇到一个问题那就是
+
+```
+ zuul:
+ 	route:
+ 		serviceid-zuul-name: #此处名字随便取
+ 			path = /account/** 
+
+```
+
+但是不能保证请求的url,在/account/后面的url路径跟 account服务里面的路径一致，所以这样会有问题。`不优雅，不易拓展`这样的话，只能用另外一种方式了，那就是通过filter转发
+
+```java
+@Component
+public class CommonServicePathFilter extends ZuulFilter {
+
+    private final static String GETWAY_FOWARD_PREFIX="getway_forward_";
+
+    private final static String GETWAY_COMPAY_CONFIG_KEY = "getway_company";
+
+    @Autowired
+    private RedisTemplate redisTemplate;
+
+    //过滤器的类型
+    @Override
+    public String filterType() {
+       //这里很重要，必须是route
+        return "route";
+    }
+
+     //过滤器执行的顺序 一个请求在同一个阶段存在多个过滤器时候，多个过滤器执行顺序问题 
+    @Override
+    public int filterOrder() {
+        return 1;
+    }
+
+
+    @Override
+    public Object run() throws ZuulException {
+        RequestContext ctx = RequestContext.getCurrentContext();
+        String url = ctx.getRequest().getRequestURI();
+        Map<String,String> forwardMap =  getForwardMap(url);
+        if(forwardMap != null){
+            String fowardUrl = forwardMap.get(url);
+            String serviceId = getServiceId(fowardUrl);
+            String requestUrl = getRequestUrl(fowardUrl,serviceId);
+              //1.设置目标service的Controller的路径
+            ctx.put(FilterConstants.REQUEST_URI_KEY,requestUrl);
+             //2.设置目标service的serviceId
+            ctx.put(FilterConstants.SERVICE_ID_KEY,serviceId);
+            /**
+            *ctx.put(FilterConstants.REQUEST_URI_KEY,requestUrl);
+但是我使用的时候，一直报404，后来跟踪服务之后，发现其实ctx里面还有一个serviceId的属性，它是跟当前请求的这个原始url映射的serviceId保持一致的，但是如果你要转发的serviceId并不是这个的话，那就会报404，所以必须要在这里重新定义serviceId,
+            *
+            */
+        }
+        return null;
+    }
+    private String getServiceId(String url){
+        if(url.startsWith("/")){
+            String temp = url.substring(1);
+            return temp.split("/")[0];
+        }else{
+            return null;
+        }
+    }
+
+    private String getRequestUrl(String url,String serviceId){
+        return url.substring(serviceId.length() +1);
+    }
+
+    //判断过滤器是否生效
+    @Override
+    public boolean shouldFilter() {
+       return true;
+    }
+
+
+
+    private Map<String,String> getForwardMap(String originalUrl){
+           //todo:这里是返回一个map，传入一个originUrl,返回一个要转发的url
+    }
+
+}
+```
+
+
+
+#### 网关灰度
+
+要完成灰度发布，要做的就是修改ribbon的负载均衡策略，通过一些特定的标识，比如我们针对某个接口路径/gray/publish/test。将10%的请求转发到新的服务上，将90%的请求转发到旧的服务上，诸如此类，我们可以制定各种规则进行灰度测试。
+
+1. 通过eurake自定义元数据metadata，来区分新旧服务。
+2. 自定义zuulfilter，按照自己的策略，修改ribbon的负载均衡。
+
+```java
+//核心代码就这么一行，实现了灰度，这里的version与要访问的服务的metadata-map中的key和value进行对应
+RibbonFilterContextHolder.getCurrentContext().add("version","v1");
+
+```
+
+3. 可以通过数据库配置进行灰度灵活发布。
+
+
+
+[Netflix-Ribbon灰度方案之Zuul网关灰度](https://blog.csdn.net/sdmanooo/article/details/115479360)
+
+
+
+[微服务Zuul网关进行灰度发布](https://www.cnblogs.com/java-spring/p/13397270.html)
+
+
+
+#### zuul限流
+
+令牌桶限流：以一定 **固定的速率** 会往里面放令牌，一个请求过来首先要从桶中获取令牌，如果没有获取到，那么这个请求就拒绝，如果获取到那么就放行。
+
+1. 限流发生在pre，每秒产生1000个令牌
+
+```java
+//每秒产生1000个令牌
+private static final RateLimiter RATE_LIMITER = RateLimiter.create(1000);
+```
+
+2. 获取到就放行，获取不到就停止。
+
+```java
+// 如果获取不到就直接停止
+requestContext.setSendZuulResponse(false);
+//setSendZuulResponse(false) 是不往ROUTE filter 后面执行，因此应该在后面所有的过滤器加条件。set标志，以此做判断依据。
+requestContext.set("limit",false);
+```
+
+
+
+
+[zuul开发实战（限流，超时解决）](https://www.cnblogs.com/wlwl/p/10413151.html)
+
+#### zuul使用中遇到的问题
+
+1. token 不会传播的其它的微服务中去。
+
+```sh
+zuul:
+  #一下配置，表示忽略下面的值向微服务传播，以下配置为空表示：所有请求头都透传到后面微服务。
+  sensitive-headers: token
+  
+```
+
+
+
+
 
 Gateway
 
