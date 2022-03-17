@@ -43,6 +43,31 @@ ps aux |grep'(cron|syslog)'
 netstat -tunlp
 ```
 
+根据 **关键词** 查看日志 并**返回关键词所在行**：
+
+方法一：**cat 路径/文件名 | grep 关键词**
+
+demo：
+
+　　　　cat test.log | grep "http"　　# 返回test.log中包含http的所有行
+
+　　*方法二：***grep -i 关键词 路径/文件名** （与方法一效果相同，不同写法而已）
+
+demo：
+
+　　　　grep -i "http" ./test.log　　# 返回test.log中包含http的所有行(-i忽略大小写）
+
+**说明：**
+**-A** 表示关键字之后，After
+**-B** 表示关键字之前，Before
+**-C** 表示关键字前后，Context
+
+
+
+根据关键字查看前后10行日志，并显示出行号
+
+cat -n hrun.log | grep "新增用户" -C 10
+
 
 
 ## **问题一：**绝对路径用什么符号表示？当前目录、上层目录用什么表示？主目录用什么表示 ? 切换目录用什么命令？

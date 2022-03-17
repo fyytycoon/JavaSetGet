@@ -297,7 +297,7 @@ Swagger 广泛用于可视化 API，使用 Swagger UI 为前端开发人员提�
 
 用于标注控制层组件(如struts中的action)，包含@Controller和@ResponseBody
 
-5、@ResponseBody
+5、@Response Body
 
 表示该方法的返回结果直接写入HTTP response body中
 
