@@ -460,7 +460,7 @@ pre->route->post 中间任何环节报错，走error和post，post环节报错�
 
 ```java
 @Component
-public class CommonServicePathFilter extends ZuulFilter {
+public class CommonServicePathFilter extends Zuul Filter {
 
     private final static String GETWAY_FOWARD_PREFIX="getway_forward_";
 

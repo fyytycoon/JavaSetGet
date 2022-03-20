@@ -1,6 +1,6 @@
 ## Linux常用命令有哪些？
 
-### 答案
+
 
 查看日志 
 
@@ -67,6 +67,47 @@ demo：
 根据关键字查看前后10行日志，并显示出行号
 
 cat -n hrun.log | grep "新增用户" -C 10
+
+
+
+
+
+## CPU问题排查
+
+[高CPU占用JVM](https://www.cnblogs.com/xuwc/p/8727488.html)
+
+[CPU故障排查Linux](https://mp.weixin.qq.com/s/24vBHgtw5efC9V9yYqknNg)
+
+1、top命令：Linux命令。可以查看实时的CPU使用情况。也可以查看最近一段时间的CPU使用情况。获取进程PID
+
+2、PS命令：Linux命令。强大的进程状态监控命令。可以查看进程以及进程中线程的当前CPU使用情况。属于当前状态的采样数据。
+
+```
+ps aux | grep PID命令
+ps -mp pid -o THREAD,tid,time
+
+其次将需要的线程ID转换为16进制格式：
+printf "%x\n" tid
+
+打印线程堆栈信息
+jstack pid |grep tid -A 30
+```
+
+
+
+3、jstack：Java提供的命令。可以查看某个进程的当前线程栈运行情况。根据这个命令的输出可以定位某个进程的所有线程的当前运行状态、运行代码，以及是否死锁等等。
+
+4、pstack：Linux命令。可以查看某个进程的当前线程栈运行情况。
+
+
+
+
+
+
+
+
+
+
 
 
 

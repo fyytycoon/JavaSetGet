@@ -261,6 +261,26 @@ public OneService getService(status) {
 
 ### bean 的生命周期?
 
+一版本
+
+创建前准备->创建实例化->依赖注入->容器缓存->销毁实例
+
+1. 创建前准备。从上下文和配置文件中，去解析和查找Bean有关的扩展实现，如`init-method`容器在初始化Bean时调用，`destroy mathod`容器在销毁Bean时调用，以及`Bean factory Post Processor`
+2. 创建实例。通过反射创建Bean的实例对象，扫描解析Bean的一些属性。
+3. 依赖注入阶段。如果被实例化的Bean存在依赖其他Bean对象，需要对被依赖的Bean进行对象注入，如 `@Auto Wired`
+4. 容器缓存。把Bean保存到容器以及Spring缓存中。这个阶段Bean可以别开发者使用，如`init mathod`会被调用。
+5. 销毁实例。应用上下文被关闭时，所有的Bean会被销毁。如果 Bean 实现了 `Disposable Bean` 接口，执行 `destroy()` 方法。如果 Bean 在配置文件中的定义包含 destroy-method 属性，执行指定的方法。
+
+
+
+
+
+
+
+
+
+二版本
+
 > 下面的内容整理自：<https://yemengying.com/2016/07/14/spring-bean-life-cycle/> ，除了这篇文章，再推荐一篇很不错的文章 ：<https://www.cnblogs.com/zrtqsk/p/3735273.html> 。
 >
 > 单点说就是：bean的实例化–>bean的初始化–>bean的使用–>bean的销毁
@@ -311,8 +331,6 @@ public OneService getService(status) {
 
 组件：
 
-
-
 1. Dispatcher Servlet：前端控制器。用户请求到达前端控制器，它就相当于mvc模式中的c，dispatcherServlet是整个流程控制的中心，由它调用其它组件处理用户的请求，dispatcherServlet的存在降低了组件之间的耦合性,系统扩展性提高。由框架实现
 
 2. HandlerMapping：处理器映射器。HandlerMapping负责根据用户请求的url找到Handler即处理器，springmvc提供了不同的映射器实现不同的映射方式，根据一定的规则去查找,例如：xml配置方式，实现接口方式，注解方式等。由框架实现
@@ -329,7 +347,7 @@ public OneService getService(status) {
 
 
 
-
+![SpringMVC工作流程](../img/SpringMVC工作流程.png)
 
 
 
@@ -354,7 +372,7 @@ public OneService getService(status) {
 （10）DispatcherServlet对View进行渲染视图（即将模型数据填充至视图中） 
 
 （11）DispatcherServlet响应用户。
-![SpringMVC工作流程](../img/SpringMVC工作流程.png)
+
 
 
 
