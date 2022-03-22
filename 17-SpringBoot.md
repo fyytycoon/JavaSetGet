@@ -291,7 +291,7 @@ Swagger 广泛用于可视化 API，使用 Swagger UI 为前端开发人员提�
 
 用于标注业务层组件。
 
-4、@RestController
+4、@Rest Controller
 
 用于标注控制层组件(如struts中的action)，包含@Controller和@ResponseBody
 
@@ -307,7 +307,7 @@ Swagger 广泛用于可视化 API，使用 Swagger UI 为前端开发人员提�
 
 泛指组件，当组件不好归类的时候，我们可以使用这个注解进行标注。
 
-7、@ComponentScan
+7、@Component Scan
 
 组件扫描。相当于，如果扫描到有@Component @Controller @Service等这些注解的类，则把
 
